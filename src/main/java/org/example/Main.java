@@ -11,15 +11,10 @@ public class Main {
     String password = "postgres";
 
     public static void main(String[] args) {
-        new Main().createTables();
-        new Main().registerMember();
-        new Main().updateProfile();
-        new Main().healthHistory();
-        new Main().PTSchedule();
-        new Main().setAvailability();
-        new Main().scheduleView();
-        new Main().roomBooking();
-        new Main().maintenanceLog();
+        Main main = new Main();
+        main.createTables();
+        main.populateTables();
+        main.login();
     }
 
     public void createTables() {
@@ -53,12 +48,12 @@ public class Main {
                 stmt.executeUpdate("""
                         CREATE TABLE public.health_logs
                         (
-                            "M_ID" integer NOT NULL,
-                            "timestamp" timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            m_id integer NOT NULL,
+                            time timestamp(0) without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
                             heart_rate integer,
                             weight integer,
-                            PRIMARY KEY ("M_ID", "timestamp"),
-                            FOREIGN KEY ("M_ID")
+                            PRIMARY KEY (m_id, time),
+                            FOREIGN KEY (m_id)
                                 REFERENCES public.members (id) MATCH SIMPLE
                                 ON UPDATE CASCADE
                                 ON DELETE CASCADE
@@ -73,11 +68,11 @@ public class Main {
                 stmt.executeUpdate("""
                         CREATE TABLE public.trainers
                         (
-                            "ID" serial NOT NULL,
+                            id serial NOT NULL,
                             first_name text NOT NULL,
                             last_name text NOT NULL,
                             password text NOT NULL,
-                            PRIMARY KEY ("ID")
+                            PRIMARY KEY (id)
                         )""");
             }
 
@@ -88,11 +83,11 @@ public class Main {
                 stmt.executeUpdate("""
                         CREATE TABLE public.staff
                         (
-                            "ID" serial NOT NULL,
+                            id serial NOT NULL,
                             first_name text NOT NULL,
                             last_name text NOT NULL,
                             password text NOT NULL,
-                            PRIMARY KEY ("ID")
+                            PRIMARY KEY (id)
                         )""");
             }
 
@@ -103,9 +98,9 @@ public class Main {
                 stmt.executeUpdate("""
                         CREATE TABLE public.rooms
                         (
-                            "number" integer NOT NULL,
-                            PRIMARY KEY ("number"),
-                            UNIQUE ("number")
+                            r_number integer NOT NULL,
+                            PRIMARY KEY (r_number),
+                            UNIQUE (r_number)
                         )""");
             }
 
@@ -116,19 +111,19 @@ public class Main {
                 stmt.executeUpdate("""
                         CREATE TABLE public.maintenance_logs
                         (
-                            "ID" serial NOT NULL,
+                            id serial NOT NULL,
                             details text NOT NULL,
                             room_number integer,
                             status text NOT NULL,
-                            "S_ID" integer,
-                            PRIMARY KEY ("ID"),
-                            FOREIGN KEY ("S_ID")
-                                REFERENCES public.staff ("ID") MATCH SIMPLE
+                            s_id integer,
+                            PRIMARY KEY (id),
+                            FOREIGN KEY (s_id)
+                                REFERENCES public.staff (id) MATCH SIMPLE
                                 ON UPDATE CASCADE
                                 ON DELETE NO ACTION
                                 NOT VALID,
                             FOREIGN KEY (room_number)
-                                REFERENCES public.rooms ("number") MATCH SIMPLE
+                                REFERENCES public.rooms (r_number) MATCH SIMPLE
                                 ON UPDATE NO ACTION
                                 ON DELETE NO ACTION
                                 NOT VALID
@@ -142,23 +137,24 @@ public class Main {
                 stmt.executeUpdate("""
                         CREATE TABLE public.training_sessions
                         (
-                            "T_ID" integer NOT NULL,
-                            start_time timestamp without time zone NOT NULL,
-                            "M_ID" integer,
+                            t_id integer NOT NULL,
+                            date date NOT NULL,
+                            start_time time(0) without time zone NOT NULL,
+                            m_id integer,
                             room integer,
-                            PRIMARY KEY ("T_ID", start_time),
-                            FOREIGN KEY ("T_ID")
-                                REFERENCES public.trainers ("ID") MATCH SIMPLE
+                            PRIMARY KEY (t_id, date, start_time),
+                            FOREIGN KEY (t_id)
+                                REFERENCES public.trainers (id) MATCH SIMPLE
                                 ON UPDATE CASCADE
                                 ON DELETE CASCADE
                                 NOT VALID,
-                            FOREIGN KEY ("M_ID")
+                            FOREIGN KEY (m_id)
                                 REFERENCES public.members (id) MATCH SIMPLE
                                 ON UPDATE CASCADE
                                 ON DELETE SET NULL
                                 NOT VALID,
                             FOREIGN KEY (room)
-                                REFERENCES public.rooms ("number") MATCH SIMPLE
+                                REFERENCES public.rooms (r_number) MATCH SIMPLE
                                 ON UPDATE CASCADE
                                 ON DELETE SET NULL
                                 NOT VALID
@@ -172,9 +168,10 @@ public class Main {
                 stmt.executeUpdate("""
                         CREATE TABLE public.unassigned_sessions
                         (
-                            "T_ID" integer NOT NULL,
-                            "time" timestamp without time zone NOT NULL,
-                            PRIMARY KEY ("T_ID", "time")
+                            t_id integer NOT NULL,
+                            date date NOT NULL,
+                            time time(0) without time zone NOT NULL,
+                            PRIMARY KEY (t_id, date, time)
                         )""");
             }
         } catch (Exception e) {
@@ -182,35 +179,163 @@ public class Main {
         }
     }
 
+    void login() {
+        Scanner sc = new Scanner(System.in);
+        String input = "";
+        ResultSet rs = null;
+
+        while(!Objects.equals(input, "Exit")) {
+            System.out.print("Select a user type to log in (Member, Trainer, or Staff), register a new member (Register), or quit the program (Exit).\n");
+            input = sc.nextLine();
+            if(input.equals("Exit")) {
+                //ends loop
+            } else if(input.equals("Register")) {
+                registerMember();
+            } else if(input.equals("Member")) {
+                System.out.print("Enter ID: ");
+                String  id = sc.nextLine();
+                try {
+                    Class.forName("org.postgresql.Driver");
+                    Connection conn = DriverManager.getConnection(url, username, password);
+                    Statement stmt = conn.createStatement();
+
+                    //search for member with that id
+                    rs = stmt.executeQuery("select * from members where id = " + id);
+                    boolean valid = rs.next();
+
+                    if(!valid) {
+                        System.out.println("Invalid ID");
+                    } else {
+                        System.out.print("Enter Password: ");
+                        String  password = sc.nextLine();
+
+                        //check password
+                        if (password.equals(rs.getString("password"))) {
+
+                            //run member UI
+                            Member member = new Member(Integer.parseInt(id));
+                            member.userInteface();
+                        } else {
+                            System.out.println("Wrong password!");
+                        }
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            } else if(input.equals("Trainer")) {
+                System.out.print("Enter ID: ");
+                String  id = sc.nextLine();
+                try {
+                    Class.forName("org.postgresql.Driver");
+                    Connection conn = DriverManager.getConnection(url, username, password);
+                    Statement stmt = conn.createStatement();
+
+                    //search for trainer with that id
+                    rs = stmt.executeQuery("select * from trainers where id = " + id);
+                    boolean valid = rs.next();
+
+                    if(!valid) {
+                        System.out.println("Invalid ID");
+                    } else {
+                        System.out.print("Enter Password: ");
+                        String  password = sc.nextLine();
+
+                        //check password
+                        if (password.equals(rs.getString("password"))) {
+
+                            //run trainer UI
+                            Trainer trainer = new Trainer(Integer.parseInt(id));
+                            trainer.userInteface();
+                        } else {
+                            System.out.println("Wrong password!");
+                        }
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            } else if(input.equals("Staff")) {
+
+                System.out.print("Enter ID: ");
+                String  id = sc.nextLine();
+                try {
+                    Class.forName("org.postgresql.Driver");
+                    Connection conn = DriverManager.getConnection(url, username, password);
+                    Statement stmt = conn.createStatement();
+
+                    //search for trainer with that id
+                    rs = stmt.executeQuery("select * from staff where id = " + id);
+                    boolean valid = rs.next();
+
+                    if(!valid) {
+                        System.out.println("Invalid ID");
+                    } else {
+                        System.out.print("Enter Password: ");
+                        String  password = sc.nextLine();
+
+                        //check password
+                        if (password.equals(rs.getString("password"))) {
+
+                            //run staff UI
+                            Staff staff = new Staff(Integer.parseInt(id));
+                            staff.userInteface();
+                        } else {
+                            System.out.println("Wrong password!");
+                        }
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                System.out.println("Invalid input");
+            }
+        }
+    }
+
+    void populateTables() {
+        System.out.println("Unimplemented: populateTables");
+    }
+
     void registerMember() {
-        System.out.println("Unimplemented: registerMember");
+        Scanner sc = new Scanner(System.in);
+
+        System.out.println("Please enter your email: ");
+        String email = sc.nextLine();
+
+        System.out.println("Please enter your password: ");
+        String pass = sc.nextLine();
+
+        System.out.println("Please enter your first name: ");
+        String first_name = sc.nextLine();
+
+        System.out.println("Please enter your last name: ");
+        String last_name = sc.nextLine();
+
+        try {
+            Class.forName("org.postgresql.Driver");
+            Connection conn = DriverManager.getConnection(url, username, password);
+            //prepared statement formatted to insert the appropriate values
+            PreparedStatement pstmt = conn.prepareStatement("insert into members (first_name, last_name, email, password) values (?, ?, ?, ?)");
+            //set values
+            pstmt.setString(1, first_name);
+            pstmt.setString(2, last_name);
+            pstmt.setString(3, email);
+            pstmt.setString(4, pass);
+            //execute statement
+            pstmt.executeUpdate();
+            System.out.println("Member successfully registered!");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
-    void updateProfile() {
-        System.out.println("Unimplemented: updateProfile");
-    }
 
-    void healthHistory() {
-        System.out.println("Unimplemented: healthHistory");
-    }
 
-    void PTSchedule() {
-        System.out.println("Unimplemented: PTSchedule");
-    }
 
-    void setAvailability() {
-        System.out.println("Unimplemented: setAvailability");
-    }
 
-    void scheduleView() {
-        System.out.println("Unimplemented: scheduleView");
-    }
 
-    void roomBooking() {
-        System.out.println("Unimplemented: roomBooking");
-    }
 
-    void maintenanceLog() {
-        System.out.println("Unimplemented: maintenanceLog");
-    }
+
+
+
 }
