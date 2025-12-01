@@ -1,7 +1,6 @@
 package org.example;
 
 import java.sql.*;
-import java.util.Objects;
 import java.util.Scanner;
 
 public class Main {
@@ -12,12 +11,11 @@ public class Main {
 
     public static void main(String[] args) {
         Main main = new Main();
-        main.createTables();
-        main.populateTables();
+        main.setup();
         main.login();
     }
 
-    public void createTables() {
+    public void setup() {
         try {
             Class.forName("org.postgresql.Driver");
             Connection conn = DriverManager.getConnection(url, username, password);
@@ -39,6 +37,10 @@ public class Main {
                             PRIMARY KEY (id),
                             UNIQUE (email)
                         )""");
+
+                stmt.executeUpdate("insert into members (first_name, last_name, email, password) " +
+                        "values ('Tomas', 'Williston', 'TW@example.com', 'password')");
+
             }
 
             tables = dbm.getTables(null, null, "health_logs", null);
@@ -59,6 +61,9 @@ public class Main {
                                 ON DELETE CASCADE
                                 NOT VALID
                         )""");
+
+                stmt.executeUpdate("insert into health_logs (m_id, heart_rate, weight) " +
+                        "values (1, 100, 80)");
             }
 
             tables = dbm.getTables(null, null, "trainers", null);
@@ -74,6 +79,11 @@ public class Main {
                             password text NOT NULL,
                             PRIMARY KEY (id)
                         )""");
+
+
+                stmt.executeUpdate("insert into trainers (first_name, last_name, password) " +
+                        "values ('John', 'Trainer', 'I<3training')");
+
             }
 
             tables = dbm.getTables(null, null, "staff", null);
@@ -89,6 +99,10 @@ public class Main {
                             password text NOT NULL,
                             PRIMARY KEY (id)
                         )""");
+
+                stmt.executeUpdate("insert into staff (first_name, last_name, password) " +
+                        "values ('Bob', 'Staff',  'HRismypassion')");
+
             }
 
             tables = dbm.getTables(null, null, "rooms", null);
@@ -102,6 +116,10 @@ public class Main {
                             PRIMARY KEY (r_number),
                             UNIQUE (r_number)
                         )""");
+
+                stmt.executeUpdate("insert into rooms " +
+                        "values (1)");
+
             }
 
             tables = dbm.getTables(null, null, "maintenance_logs", null);
@@ -140,6 +158,7 @@ public class Main {
                             t_id integer NOT NULL,
                             date date NOT NULL,
                             start_time time(0) without time zone NOT NULL,
+                            end_time time(0) without time zone NOT NULL,
                             m_id integer,
                             room integer,
                             PRIMARY KEY (t_id, date, start_time),
@@ -159,6 +178,10 @@ public class Main {
                                 ON DELETE SET NULL
                                 NOT VALID
                         )""");
+
+                stmt.executeUpdate("insert into training_sessions (t_id, date, start_time, end_time) " +
+                        "values (1, '2025-12-02', '12:00', '13:00')");
+
             }
 
             tables = dbm.getTables(null, null, "unassigned_sessions", null);
@@ -168,12 +191,30 @@ public class Main {
                 stmt.executeUpdate("""
                         CREATE TABLE public.unassigned_sessions
                         (
-                            t_id integer NOT NULL,
-                            date date NOT NULL,
-                            time time(0) without time zone NOT NULL,
-                            PRIMARY KEY (t_id, date, time)
+                            t_id integer,
+                            date date,
+                            "time" time(0) without time zone,
+                            PRIMARY KEY (t_id, date, "time"),
+                            FOREIGN KEY (t_id, date, "time")
+                                REFERENCES public.training_sessions (t_id, date, start_time) MATCH SIMPLE
+                                ON UPDATE NO ACTION
+                                ON DELETE NO ACTION
+                                NOT VALID
                         )""");
             }
+
+            stmt.executeUpdate("CREATE OR ALTER VIEW public.health_sum\n" +
+                    "    AS\n" +
+                    "   SELECT id, first_name, last_name, heart_rate AS latest_hr, weight AS latest_w FROM members t JOIN (SELECT h.m_id,\n" +
+                    "       h.heart_rate,\n" +
+                    "       h.weight,\n" +
+                    "       m.\"time\"\n" +
+                    "FROM ( SELECT health_logs.m_id,\n" +
+                    "              max(health_logs.\"time\") AS \"time\"\n" +
+                    "       FROM health_logs\n" +
+                    "       GROUP BY health_logs.m_id) m\n" +
+                    "         JOIN health_logs h ON h.m_id = m.m_id AND m.\"time\" = h.\"time\"\n" +
+                    ") f ON t.id = f.m_id");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -184,11 +225,11 @@ public class Main {
         String input = "";
         ResultSet rs = null;
 
-        while(!Objects.equals(input, "Exit")) {
-            System.out.print("Select a user type to log in (Member, Trainer, or Staff), register a new member (Register), or quit the program (Exit).\n");
+        while(!input.equals("Exit")) {
+            System.out.println("Select a user type to log in (Member, Trainer, or Staff), register a new member (Register), or quit the program (Exit).");
             input = sc.nextLine();
             if(input.equals("Exit")) {
-                //ends loop
+                System.out.println("Exiting program...");
             } else if(input.equals("Register")) {
                 registerMember();
             } else if(input.equals("Member")) {
@@ -291,9 +332,6 @@ public class Main {
         }
     }
 
-    void populateTables() {
-        System.out.println("Unimplemented: populateTables");
-    }
 
     void registerMember() {
         Scanner sc = new Scanner(System.in);
@@ -315,11 +353,13 @@ public class Main {
             Connection conn = DriverManager.getConnection(url, username, password);
             //prepared statement formatted to insert the appropriate values
             PreparedStatement pstmt = conn.prepareStatement("insert into members (first_name, last_name, email, password) values (?, ?, ?, ?)");
+
             //set values
             pstmt.setString(1, first_name);
             pstmt.setString(2, last_name);
             pstmt.setString(3, email);
             pstmt.setString(4, pass);
+
             //execute statement
             pstmt.executeUpdate();
             System.out.println("Member successfully registered!");
