@@ -1,4 +1,4 @@
-package org.example;
+package App;
 
 import java.sql.*;
 import java.util.Scanner;
@@ -40,6 +40,9 @@ public class Main {
 
                 stmt.executeUpdate("insert into members (first_name, last_name, email, password) " +
                         "values ('Tomas', 'Williston', 'TW@example.com', 'password')");
+
+                stmt.executeUpdate("insert into members (first_name, last_name, email, password) " +
+                        "values ('Fake', 'Person', 'fake@email.com', 'password2')");
 
             }
 
@@ -85,6 +88,9 @@ public class Main {
 
                 stmt.executeUpdate("insert into trainers (first_name, last_name, password) " +
                         "values ('John', 'Trainer', 'I<3training')");
+
+                stmt.executeUpdate("insert into trainers (first_name, last_name, password) " +
+                        "values ('Jane', 'Trainer', 'trainingTime')");
 
             }
 
@@ -180,10 +186,6 @@ public class Main {
                                 ON DELETE SET NULL
                                 NOT VALID
                         )""");
-
-                stmt.executeUpdate("insert into training_sessions (t_id, date, start_time, end_time) " +
-                        "values (1, '2025-12-02', '12:00', '13:00')");
-
             }
 
             tables = dbm.getTables(null, null, "unassigned_sessions", null);
@@ -213,15 +215,15 @@ public class Main {
                     CREATE OR REPLACE VIEW public.user_summary
                         AS
                         SELECT id, first_name, last_name, heart_rate AS latest_hr, weight AS latest_w FROM members t JOIN (SELECT h.m_id,
-                                               h.heart_rate,
-                                               h.weight,
-                                               m."time"
-                                            FROM ( SELECT health_logs.m_id,
-                                                      max(health_logs."time") AS "time"
-                                               FROM health_logs
-                                               GROUP BY health_logs.m_id) m
-                                                 JOIN health_logs h ON h.m_id = m.m_id AND m."time" = h."time"
-                                        ) f ON t.id = f.m_id;""");
+                               h.heart_rate,
+                               h.weight,
+                            m."time"
+                           FROM ( SELECT health_logs.m_id,
+                            max(health_logs."time") AS "time"
+                           FROM health_logs
+                          GROUP BY health_logs.m_id) m
+                           JOIN health_logs h ON h.m_id = m.m_id AND m."time" = h."time"
+                    ) f ON t.id = f.m_id;""");
             }
 
 
