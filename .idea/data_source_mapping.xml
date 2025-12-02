@@ -2,5 +2,7 @@
 <project version="4">
   <component name="DataSourcePerFileMappings">
     <file url="file://$APPLICATION_CONFIG_DIR$/consoles/db/993c6b01-f43d-408f-a837-435d71e15613/console.sql" value="993c6b01-f43d-408f-a837-435d71e15613" />
+    <file url="file://$PROJECT_DIR$/src/main/java/sql/DDL.sql" value="993c6b01-f43d-408f-a837-435d71e15613" />
+    <file url="file://$PROJECT_DIR$/src/main/java/sql/DML.sql" value="993c6b01-f43d-408f-a837-435d71e15613" />
   </component>
 </project>

@@ -46,6 +46,8 @@ public class Main {
             tables = dbm.getTables(null, null, "health_logs", null);
             table_exists = tables.next();
 
+
+
             if (!table_exists) {
                 stmt.executeUpdate("""
                         CREATE TABLE public.health_logs
@@ -101,7 +103,7 @@ public class Main {
                         )""");
 
                 stmt.executeUpdate("insert into staff (first_name, last_name, password) " +
-                        "values ('Bob', 'Staff',  'HRismypassion')");
+                        "values ('Bob', 'Staff',  'admin')");
 
             }
 
@@ -203,18 +205,26 @@ public class Main {
                         )""");
             }
 
-            stmt.executeUpdate("CREATE OR ALTER VIEW public.health_sum\n" +
-                    "    AS\n" +
-                    "   SELECT id, first_name, last_name, heart_rate AS latest_hr, weight AS latest_w FROM members t JOIN (SELECT h.m_id,\n" +
-                    "       h.heart_rate,\n" +
-                    "       h.weight,\n" +
-                    "       m.\"time\"\n" +
-                    "FROM ( SELECT health_logs.m_id,\n" +
-                    "              max(health_logs.\"time\") AS \"time\"\n" +
-                    "       FROM health_logs\n" +
-                    "       GROUP BY health_logs.m_id) m\n" +
-                    "         JOIN health_logs h ON h.m_id = m.m_id AND m.\"time\" = h.\"time\"\n" +
-                    ") f ON t.id = f.m_id");
+            tables = dbm.getTables(null, null, "user_summary", null);
+            table_exists = tables.next();
+
+            if (!table_exists) {
+                stmt.executeUpdate("""
+                    CREATE OR REPLACE VIEW public.user_summary
+                        AS
+                        SELECT id, first_name, last_name, heart_rate AS latest_hr, weight AS latest_w FROM members t JOIN (SELECT h.m_id,
+                                               h.heart_rate,
+                                               h.weight,
+                                               m."time"
+                                            FROM ( SELECT health_logs.m_id,
+                                                      max(health_logs."time") AS "time"
+                                               FROM health_logs
+                                               GROUP BY health_logs.m_id) m
+                                                 JOIN health_logs h ON h.m_id = m.m_id AND m."time" = h."time"
+                                        ) f ON t.id = f.m_id;""");
+            }
+
+
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -255,7 +265,7 @@ public class Main {
 
                             //run member UI
                             Member member = new Member(Integer.parseInt(id));
-                            member.userInteface();
+                            member.userInterface();
                         } else {
                             System.out.println("Wrong password!");
                         }
@@ -286,7 +296,7 @@ public class Main {
 
                             //run trainer UI
                             Trainer trainer = new Trainer(Integer.parseInt(id));
-                            trainer.userInteface();
+                            trainer.userInterface();
                         } else {
                             System.out.println("Wrong password!");
                         }
@@ -318,7 +328,7 @@ public class Main {
 
                             //run staff UI
                             Staff staff = new Staff(Integer.parseInt(id));
-                            staff.userInteface();
+                            staff.userInterface();
                         } else {
                             System.out.println("Wrong password!");
                         }
@@ -367,9 +377,9 @@ public class Main {
             throw new RuntimeException(e);
         }
 
+
+
     }
-
-
 
 
 
