@@ -108,6 +108,49 @@ public class Member {
     }
 
     void schedulePT() {
-        System.out.println("Unimplemented: SchedulePT");
+        try {
+            Class.forName("org.postgresql.Driver");
+            Connection conn = DriverManager.getConnection(url, username, password);
+            Statement stmt = conn.createStatement();
+
+            Scanner sc = new Scanner(System.in);
+            System.out.println("What day would you like to book? (YYYY-MM-DD)");
+            String day = sc.nextLine();
+
+            ResultSet rs = stmt.executeQuery("SELECT first_name, last_name, start_time, end_time FROM " +
+                    "(SELECT * FROM training_sessions WHERE date = '"+day+"' AND room IS NOT null AND m_id ISNULL ) s JOIN trainers t on s.t_id = t.id;");
+            if(rs.next()) {
+                System.out.println("Here are the available training sessions for that day:");
+                int counter = 1;
+                System.out.println(counter + " " + rs.getString("first_name") + " " +
+                        rs.getString("last_name") + " " + rs.getString("start_time") + "-" + rs.getString("end_time"));
+                counter++;
+                while(rs.next()) {
+                    System.out.println(counter + " " + rs.getString("first_name") + " " +
+                            rs.getString("last_name") + " " + rs.getString("start_time") + "-" + rs.getString("end_time"));
+                    counter++;
+                }
+                System.out.println("Please enter the id of the session you would like to book (Number on the left)");
+                int id = sc.nextInt();
+
+                rs = stmt.executeQuery("SELECT t_id, start_time FROM training_sessions WHERE date = '"+day+"' AND room IS NOT null AND m_id ISNULL;");
+
+                for (int i = 0; i < id; i++) {
+                    rs.next();
+                }
+
+                stmt.executeUpdate("UPDATE training_sessions SET m_id = " + id + " WHERE start_time = '" + rs.getString("start_time") +
+                        "' AND date = '" + day + "' AND t_id = " + rs.getInt("t_id"));
+
+                System.out.println("Successfully updated training session\n");
+
+            } else {
+                System.out.println("There are no available training sessions for that day");
+            }
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+
+
     }
 }
